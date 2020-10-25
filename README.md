@@ -1,6 +1,5 @@
 # Install Firefox Addon
 Python script to automatically install Firefox addons right from your shell
-------------
 
 ## Why? I have been digging since hours through the entire web and found out Ubuntu had a script doing the exact same.
 For now, it does the same, albeit it uses AMO (addons.mozilla.org) search's API.
