@@ -5,7 +5,6 @@ import io
 import re
 import sys
 import json
-import uuid
 import glob
 import hashlib
 import argparse
