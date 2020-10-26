@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+"""
+ TODO:
+  - Add option to choose profile (and not loop through each)
+  - Support IndexedDB
+  - More verbosity
+"""
+
 import os
 import io
 import re
@@ -70,23 +77,101 @@ def install(addon_xpi, guid):
             f.write(addon_xpi)
             f.close()
 
+def read_database(addon):
+    """
+     We can't read IndexedDB storage yet,
+     it is so fucking complex:
+     https://stackoverflow.com/questions/22917139/how-can-i-access-firefoxs-internal-indexeddb-files-using-python
+    """
+
+    import sqlite3
+
+    result = research(addon)["results"][0]
+    request = urllib.request.urlopen(result["url"])
+    contents = request.read().decode("utf-8")
+    guid = find_guid(contents)
+
+    home = os.environ["HOME"]
+    profiles = glob.glob(f"{home}/.mozilla/firefox/**.default-release/")
+    for profile in profiles:
+        conn = sqlite3.connect(profile + "storage-sync-v2.sqlite")
+        c = conn.cursor()
+        c.execute("SELECT * FROM storage_sync_data")
+        results = c.fetchall()
+
+        for i, result_addon in enumerate(results):
+            (addon_guid, data, _) = result_addon
+            if addon_guid == guid:
+                pretty_json = json.dumps(json.loads(data), indent=2)
+                if sys.stdout.isatty():
+                    print(f"{addon_guid}: \n" \
+                        f"{pretty_json}\n" \
+                        f"You can redirect this command output to {addon}.prefs.py\n" \
+                        "to be able to reinstall this addon with the same preferences:\n" \
+                        f"./{' '.join(sys.argv)} > {addon}.prefs.py")
+                else:
+                    print(f"storage({pretty_json})")
+            elif i == len(results):
+                print("Couldn't find addon, it either isn't installed or uses indexedDB.")
+                sys.exit(1)
+
+        conn.close()
+
+def process_prefs(prefs_py, addon):
+    def storage(prefs):
+        import sqlite3
+
+        result = research(addon)["results"][0]
+        request = urllib.request.urlopen(result["url"])
+        contents = request.read().decode("utf-8")
+        guid = find_guid(contents)
+
+        home = os.environ["HOME"]
+        profiles = glob.glob(f"{home}/.mozilla/firefox/**.default-release/")
+        for profile in profiles:
+            conn = sqlite3.connect(profile + "storage-sync-v2.sqlite")
+            c = conn.cursor()
+            """
+             CREATE TABLE storage_sync_data (
+               ext_id TEXT NOT NULL PRIMARY KEY,
+               data TEXT,
+               sync_change_counter INTEGER NOT NULL DEFAULT 1
+             );
+            """
+            c.execute("INSERT OR REPLACE INTO storage_sync_data VALUES (?,?,?)", (guid, json.dumps(prefs, separators=(",", ":")), 1))
+            conn.commit()
+
+    null = None
+    true = True
+    false = True
+    with open(prefs_py) as f:
+        eval(f.read())
+
 def main():
     parser = argparse.ArgumentParser(description="Download and install Firefox Addons right from your shell")
     parser.add_argument("addon", type=str, help="Addon to install")
     parser.add_argument("-f", "--first", action="store_true")
+    parser.add_argument("-r", "--readdb", action="store_true")
+    parser.add_argument("-p", "--prefs", required=not "-r" in sys.argv or "--readdb" in sys.argv)
 
     args = parser.parse_args()
-    search = research(args.addon) 
-    choose_first = args.first
 
-    if not len(search["results"]):
-        print("No addons found.")
-        sys.exit(1)
-
-    if choose_first:
-        process(search["results"][0])
+    if args.readdb:
+        read_database(args.addon)
+    elif args.prefs:
+        process_prefs(args.prefs, args.addon)
     else:
-        process(input_for_addon(search))
+        search = research(args.addon) 
+        choose_first = args.first
+
+        if not len(search["results"]):
+            print("No addons found.")
+            sys.exit(1)
+
+        if choose_first:
+            process(search["results"][0])
+        else:
+            process(input_for_addon(search))
 
 if __name__ == "__main__":
     main()
