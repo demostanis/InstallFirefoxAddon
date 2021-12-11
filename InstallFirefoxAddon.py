@@ -18,6 +18,8 @@ import argparse
 import urllib.request
 import urllib.parse
 
+from pathlib import Path
+
 def find_download_link(contents):
     if match := re.search(r"(https://addons.mozilla.org\/firefox\/downloads\/file\/\d+\/.*\.xpi)..Download file", contents):
         return match.group(1)
@@ -73,6 +75,7 @@ def install(addon_xpi, guid):
     dest = glob.glob(f"{home}/.mozilla/firefox/**.default-release/extensions/")
 
     for profile in dest:
+        Path(dest).mkdir(parents=True, exist_ok=True)
         with open(profile + guid + ".xpi", "wb") as f:
             f.write(addon_xpi)
             f.close()
@@ -152,7 +155,7 @@ def main():
     parser.add_argument("addon", type=str, help="Addon to install")
     parser.add_argument("-f", "--first", action="store_true")
     parser.add_argument("-r", "--readdb", action="store_true")
-    parser.add_argument("-p", "--prefs", required=not "-r" in sys.argv or "--readdb" in sys.argv)
+    parser.add_argument("-p", "--prefs")
 
     args = parser.parse_args()
 
