@@ -75,8 +75,9 @@ def install(addon_xpi, guid):
     dest = glob.glob(f"{home}/.mozilla/firefox/**.default-release/")
 
     for profile in dest:
+        print(f"Installing to {profile}...")
         Path(profile + "/extensions").mkdir(parents=True, exist_ok=True)
-        with open(f"{profile}/extensions{guid}.xpi", "wb") as f:
+        with open(f"{profile}/extensions/{guid}.xpi", "wb") as f:
             f.write(addon_xpi)
             f.close()
 
