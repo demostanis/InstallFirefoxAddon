@@ -72,11 +72,11 @@ def process(addon):
 
 def install(addon_xpi, guid):
     home = os.environ["HOME"]
-    dest = glob.glob(f"{home}/.mozilla/firefox/**.default-release/extensions/")
+    dest = glob.glob(f"{home}/.mozilla/firefox/**.default-release/")
 
     for profile in dest:
-        Path(dest).mkdir(parents=True, exist_ok=True)
-        with open(profile + guid + ".xpi", "wb") as f:
+        Path(profile + "/extensions").mkdir(parents=True, exist_ok=True)
+        with open(f"{profile}/extensions{guid}.xpi", "wb") as f:
             f.write(addon_xpi)
             f.close()
 
